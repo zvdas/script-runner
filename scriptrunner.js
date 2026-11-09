@@ -11,8 +11,16 @@ const projectsList = fs.readdirSync(path.join(__dirname, 'service-accounts'))
     .map(file => file.split('.json')[0])
     .sort();
 
+/**
+ * Enter the name of the script you want to run and store it in the "current" subfolder of "scripts" folder
+ * Once you have the script in the "current" folder, you can run it by executing this file (scriptrunner.js)
+ * After successful execution, you can move the script to the "archive" folder for future reference
+ * 
+ * The project name is automatically detected from the service account files in the "service-accounts" folder
+ * If you want to run the script for a different project, you can change the project name in the "projectName" variable below
+ */
 const scriptFileName = 'helloWorld';
-const projectName = projectsList[1]; // Replace with the desired project name
+const projectName = projectsList[1] ?? 'aia-finance';
 
 const storageBucket = `${projectName}.firebasestorage.app`;
 
