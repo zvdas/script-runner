@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+// const fs = require('fs');
+// const path = require('path');
 
 const { initializeApp, cert } = require('firebase-admin/app');
 
@@ -7,9 +7,9 @@ const { getFirestore } = require('firebase-admin/firestore');
 
 const { getStorage } = require('firebase-admin/storage');
 
-const projectsList = fs.readdirSync(path.join(__dirname, 'service-accounts'))
-    .map(file => file.split('.json')[0])
-    .sort();
+// const projectsList = fs.readdirSync(path.join(__dirname, 'service-accounts'))
+//     .map(file => file.split('.json')[0])
+//     .sort();
 
 /**
  * Enter the name of the script you want to run and store it in the "current" subfolder of "scripts" folder
@@ -22,22 +22,19 @@ const projectsList = fs.readdirSync(path.join(__dirname, 'service-accounts'))
 const scriptFileName = 'helloWorld';
 
 const projectId = 
-// projectsList[1];
 'eventfinderapp-2d94f';
-// 'meeting-platform-d6a7f';
-// 'pokemonsearchapp-a72a7';
-// 'threedmodelapp';
-// 'dishpollapp';
 // 'foodblogapp-d6a7f';
 // 'onlinetestapp-1e50c';
+// 'pokemonsearchapp-a72a7';
+// 'threedmodelapp';
 
 const storageBucket = `${projectId}.firebasestorage.app`;
 
-const projectCredentials = require(`./service-accounts/${projectName}.json`);
+const projectCredentials = require(`./service-accounts/${projectId}.json`);
 
 const app = initializeApp({
-    // credential: cert(projectCredentials),
-    projectId,
+    credential: cert(projectCredentials),
+    // projectId,
     storageBucket,
 });
 
