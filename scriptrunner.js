@@ -20,16 +20,25 @@ const projectsList = fs.readdirSync(path.join(__dirname, 'service-accounts'))
  * If you want to run the script for a different project, you can change the project name in the "projectName" variable below
  */
 const scriptFileName = 'helloWorld';
-const projectName = projectsList[1] ?? 'aia-finance';
 
-const storageBucket = `${projectName}.firebasestorage.app`;
+const projectId = 
+// projectsList[1];
+'eventfinderapp-2d94f';
+// 'meeting-platform-d6a7f';
+// 'pokemonsearchapp-a72a7';
+// 'threedmodelapp';
+// 'dishpollapp';
+// 'foodblogapp-d6a7f';
+// 'onlinetestapp-1e50c';
+
+const storageBucket = `${projectId}.firebasestorage.app`;
 
 const projectCredentials = require(`./service-accounts/${projectName}.json`);
 
 const app = initializeApp({
     // credential: cert(projectCredentials),
-    projectId: projectCredentials.project_id,
-    storageBucket: storageBucket,
+    projectId,
+    storageBucket,
 });
 
 const db = getFirestore(app);
@@ -37,4 +46,4 @@ const storage = getStorage(app).bucket();
 
 const { script } = require(`./scripts/current/${scriptFileName}`);
 
-script({ db, storage, projectName });
+script({ db, storage, projectId });
