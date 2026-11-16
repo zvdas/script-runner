@@ -4,7 +4,8 @@
   "description": "A node.js operations tool to primarily manage the firestore database and any other scripts that may be required.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node scriptrunner.js"
   },
   "repository": {
     "type": "git",
