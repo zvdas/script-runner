@@ -7,11 +7,10 @@ import type { ScriptContext } from "./interfaces/ScriptContext.js";
 
 /**
  * Enter the name of the script you want to run and store it in the "current" subfolder of "scripts" folder
- * Once you have the script in the "current" folder, you can run it by executing this file (scriptrunner.js)
+ * Once you have the script in the "current" folder, you can run it by executing this file (index.ts) using the command: "npm run dev" or "npm run start"
  * After successful execution, you can move the script to the "archive" folder for future reference
  * 
- * The project name is automatically detected from the service account files in the "service-accounts" folder
- * If you want to run the script for a different project, you can change the project name in the "projectName" variable below
+ * Uncomment the project ID you want to use below
  */
 const scriptFileName = 'helloWorld';
 
@@ -38,6 +37,6 @@ const app = initializeApp({
 
 const db = getFirestore(app);
 
-const { script }: { script: (ctx: ScriptContext) => Promise<void> | void } = await import(`./scripts/current/${scriptFileName}`);
+const { script }: { script: (ctx: ScriptContext) => Promise<void> | void } = await import(`./scripts/current/${scriptFileName}.js`);
 
 await script({ db, projectId });

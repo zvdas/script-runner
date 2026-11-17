@@ -2,12 +2,12 @@
   "name": "script-runner",
   "version": "1.0.0",
   "description": "A node.js operations tool to primarily manage the firestore database and any other scripts that may be required.",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "start": "node dist/index.ts"
+    "start": "node dist/index.js"
   },
   "engines": {
     "node": ">=22"
