@@ -1,8 +1,12 @@
-# Node Modules
-node_modules
+# Build/Dependency files & folders
+**/node_modules
+**/dist
+
+# macOS
+.DS_Store
+
+# Firebase logs
+*-debug.log
 
 # Firebase Projects
 service-accounts
-
-# Compilation Folders
-/dist
