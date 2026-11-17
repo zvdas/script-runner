@@ -15,24 +15,25 @@ import type { ScriptContext } from "./interfaces/ScriptContext.js";
 const scriptFileName = 'helloWorld';
 
 const projectId =
-    'eventfinderapp-2d94f';
-// 'foodblogapp-d6a7f';
-// 'onlinetestapp-1e50c';
-// 'pokemonsearchapp-a72a7';
-// 'threedmodelapp';
+    'demo-scriptrunner';
+    // 'eventfinderapp-2d94f';
+    // 'foodblogapp-d6a7f';
+    // 'onlinetestapp-1e50c';
+    // 'pokemonsearchapp-a72a7';
+    // 'threedmodelapp';
 
-const storageBucket = `${projectId}.firebasestorage.app`;
+// const storageBucket = `${projectId}.firebasestorage.app`;
 
-const filePath = path.resolve(`./service-accounts/${projectId}.json`);
+// const filePath = path.resolve(`./service-accounts/${projectId}.json`);
 
-const fileContent = await readFile(filePath, 'utf-8');
+// const fileContent = await readFile(filePath, 'utf-8');
 
-const projectCredentials = JSON.parse(fileContent);
+// const projectCredentials = JSON.parse(fileContent);
 
 const app = initializeApp({
-    credential: cert(projectCredentials),
-    // projectId,
-    storageBucket,
+    // credential: cert(projectCredentials),
+    projectId,
+    // storageBucket,
 });
 
 const db = getFirestore(app);
