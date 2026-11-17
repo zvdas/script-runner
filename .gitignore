@@ -3,3 +3,6 @@ node_modules
 
 # Firebase Projects
 service-accounts
+
+# Compilation Folders
+/dist
