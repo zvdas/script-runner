@@ -1,15 +1,9 @@
-// const fs = require('fs');
-// const path = require('path');
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
-const { initializeApp, cert } = require('firebase-admin/app');
-
-const { getFirestore } = require('firebase-admin/firestore');
-
-const { getStorage } = require('firebase-admin/storage');
-
-// const projectsList = fs.readdirSync(path.join(__dirname, 'service-accounts'))
-//     .map(file => file.split('.json')[0])
-//     .sort();
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import type { ScriptContext } from "./interfaces/ScriptContext.js";
 
 /**
  * Enter the name of the script you want to run and store it in the "current" subfolder of "scripts" folder
@@ -21,8 +15,8 @@ const { getStorage } = require('firebase-admin/storage');
  */
 const scriptFileName = 'helloWorld';
 
-const projectId = 
-'eventfinderapp-2d94f';
+const projectId =
+    'eventfinderapp-2d94f';
 // 'foodblogapp-d6a7f';
 // 'onlinetestapp-1e50c';
 // 'pokemonsearchapp-a72a7';
@@ -30,7 +24,11 @@ const projectId =
 
 const storageBucket = `${projectId}.firebasestorage.app`;
 
-const projectCredentials = require(`./service-accounts/${projectId}.json`);
+const filePath = path.resolve(`./service-accounts/${projectId}.json`);
+
+const fileContent = await readFile(filePath, 'utf-8');
+
+const projectCredentials = JSON.parse(fileContent);
 
 const app = initializeApp({
     credential: cert(projectCredentials),
@@ -39,8 +37,7 @@ const app = initializeApp({
 });
 
 const db = getFirestore(app);
-const storage = getStorage(app).bucket();
 
-const { script } = require(`./scripts/current/${scriptFileName}`);
+const { script }: { script: (ctx: ScriptContext) => Promise<void> | void } = await import(`./scripts/current/${scriptFileName}`);
 
-script({ db, storage, projectId });
+await script({ db, projectId });
