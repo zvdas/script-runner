@@ -25,7 +25,6 @@ Jira epic: KAN-38 · Sprint 0 · 16–20 Nov 2026
   *Rule:* "works on my machine" doesn't count. Test on a fresh clone with `npm ci`.
 
 **Gotchas**
-
 1. **`require` loads a module; it doesn't run its functions.**
    - *Assumed:* importing `helloWorld.js` executes it, and control then returns to `scriptrunner.js`.
    - *Actual:* `require` runs the file's top-level code once and returns its `module.exports`. helloWorld's top level only defines a function, so nothing inside it runs until `scriptrunner.js` calls `script(...)`. Control never leaves the runner.
@@ -76,3 +75,87 @@ Jira epic: KAN-38 · Sprint 0 · 16–20 Nov 2026
 - TypeScript, `--help` and the emulator connection (KAN-39 items 1–3) carry over to Day 2.
 
 ---
+
+## Day 2 · Tue 17 Nov · KAN-39 (TypeScript + emulator)
+
+**Goal**: Move to TypeScript (ESM), make the build run cleanly from a fresh clone, connect to the Firestore emulator.
+
+**What I built**
+- The TypeScript + ES modules setup: `src/index.ts`, `src/interfaces/ScriptContext.ts`, `src/scripts/current/helloWorld.ts`, compiling to `dist/`.
+- Scripts: `build` (tsc), `dev` (tsx), `start` (node dist).
+- The Firebase CLI as a dev dependency, plus `firebase.json` and `.firebaserc`, with the Firestore emulator running under `demo-scriptrunner`.
+- A round trip against the emulator: `[]` → add a doc in the UI → `[ 'events' ]`.
+- `.gitignore` cleanup: `dist`, `.DS_Store`, `*-debug.log`.
+
+#### TypeScript migration
+1. **Types come from the Admin SDK, as named imports.**
+   - *Assumed:* default imports work, and client SDK types (`firebase/firestore`) work with Admin SDK objects.
+   - *Actual:* the Admin SDK uses named exports (`import { getFirestore, type Firestore }`). Client and Admin types don't mix. `getStorage(app).bucket()` returns a `Bucket` (from `@google-cloud/storage`), not `Storage`.
+   - *Rule:* import types from the same package that creates the object.
+
+2. **Static imports can't load by name.**
+   - *Assumed:* string literals do not work with `import` statements directly, not the same way as `require`.
+   - *Actual:* static `import`s are hoisted, and Node resolves the whole module graph before any code runs, so the path must be a fixed string. The script name is only known at runtime, so it needs `await import()`. The key file is read with `readFile` + `JSON.parse`.
+   - *Rule:* static import for fixed dependencies; dynamic `import()` for anything chosen at runtime.
+
+3. **`verbatimModuleSyntax` means type-only imports.**
+   - *Error:* `TS1484: 'ScriptContext' is a type and must be imported using a type-only import`.
+   - *Rule:* use `import type` for interfaces and types, so TypeScript removes them completely from the compiled JS.
+
+4. **`TypeError: script is not a function`.**
+   - *Actual:* the runner used ESM `import()`, but `helloWorld` still used `module.exports`, so `{ script }` came back undefined.
+   - *Rule:* every script uses `export const script = …`. Never mix the two module systems.
+   - *Note:* verify the exact `.default` explanation with a tiny test file before publishing it.
+
+5. **tsc vs tsx** (correcting my own understanding)
+   - *Assumed:* TypeScript compiles at runtime, via `tsc <file>`.
+   - *Actual:* `tsc` compiles **ahead of time** into `dist/` and reads `tsconfig.json`. `tsc <file>` ignores the config. `tsx` strips types on the fly during dev and **doesn't type-check**.
+   - *Rule:* `dev` for speed, `build` to check types, and always run the built output before calling it done.
+
+**Bugs**
+- **`npm start` failed with `MODULE_NOT_FOUND`:** the start script pointed at `dist/index.ts`, but `tsc` emits `.js`.
+- **The compiled build failed with `ERR_MODULE_NOT_FOUND`:** the dynamic import had no `.js` extension. In ES modules Node won't guess extensions, and `tsx` hid the problem in dev.
+  *Rule:* test the built output, not just dev. Relative imports in `.ts` files end in `.js`.
+- **A leftover from `tsc --init`:** `"jsx": "react-jsx"` (removed).
+
+**Gotchas**
+
+6. **What “server” means.** 
+   ScriptRunner is a local Node program (“server-side” = not in a browser). The emulator is also local. Cloud Functions are the only part deployed to Google. So the `firebase` client SDK was removed.
+
+7. **Cloud Storage needs Blaze.**
+   - Actual: since 3 Feb 2026, Cloud Storage needs the Blaze plan; Spark projects get 402/403 errors. Firestore and the emulators work on Spark.
+   - Decision: `storage` is optional in `ScriptContext`, and storage is deferred. If required later, can switch to Blaze plan with budget-alerts set up.
+
+8. **`demo-` projects are never created.**
+   - Assumed: `firebase init` → “Create a new project” with `demo-scriptrunner`.
+   - Actual: refused with “Project ID cannot start with `demo-`”. Demo IDs are only names passed to the emulator. Nothing exists in the cloud, so they can’t reach production.
+   - Rule: “Don’t set up a default project”, then set the ID in `.firebaserc`.
+
+9. **The CLI login isn’t ADC.**
+   - `firebase login` was needed for `init`, but it gives `firebase-admin` no credentials. ADC needs gcloud auth `application-default login` (or a key file).
+
+10. **Init’s Space vs Enter.**
+   - Pressing Enter without Space selected zero emulators, so `emulators:start` said “No emulators to start”.
+   - Rule: read the generated config (`cat firebase.json .firebaserc`) instead of trusting “✔ complete”.
+
+11. **`demo-no-project`: data that seemed to be missing.**
+   - Assumed: the emulator runs under the project ID in my code.
+   - Actual: with no default in `.firebaserc`, it ran as `demo-no-project`. The UI showed events, but the script (as demo-scriptrunner) saw `[]`. Emulator data is kept per project ID.
+   - Fix: set .firebaserc default to demo-scriptrunner, restart.
+   - Rule: pin the project ID, and have the runner print its target so a mismatch shows up immediately.
+
+12. **The env var overrides the project ID.**
+   - With `FIRESTORE_EMULATOR_HOST` set, even `eventfinderapp-2d94f` went to the emulator (and got an empty area). The reverse is the danger: forget the env var and a real ID goes to production.
+   - Rule (KAN-42): emulator ⇒ `demo-` ID only; live ⇒ explicit opt-in.
+
+13. **How I knew it was the emulator.**
+   - The first `[]` was proof: `demo-scriptrunner` has no credentials and no cloud project, so a live call would have errored.
+
+**Decisions / deferred**
+- Storage is deferred (optional in `ScriptContext`).
+- Open: the key-file lines are commented out, so the live path is broken. A fresh clone’s `npm start` fails with `NO_ADC_FOUND`.
+- Open: the EMULATOR/LIVE target line, the conditional key/ADC fallback, `--help`.
+- Open: the deprecation warning does not disappear with ADC
+
+**Next:** the guard + target line, the credential fallback, `--help` → close KAN-39.
