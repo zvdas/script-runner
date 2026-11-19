@@ -1,40 +1,96 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { parseArgs } from "node:util";
+import { access, readFile } from "node:fs/promises";
+
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { ScriptContext } from "./interfaces/ScriptContext.js";
 
-/**
- * Enter the name of the script you want to run and store it in the "current" subfolder of "scripts" folder
- * Once you have the script in the "current" folder, you can run it by executing this file (index.ts) using the command: "npm run dev" or "npm run start"
- * After successful execution, you can move the script to the "archive" folder for future reference
- * 
- * Uncomment the project ID you want to use below
- */
-const scriptFileName = 'helloWorld';
+const usage = `Usage: npm run dev -- --script <scriptName> --project <projectId>`;
 
-const projectId =
-    'demo-scriptrunner';
-    // 'eventfinderapp-2d94f';
-    // 'foodblogapp-d6a7f';
-    // 'onlinetestapp-1e50c';
-    // 'pokemonsearchapp-a72a7';
-    // 'threedmodelapp';
+// arguments definitions for cli
+function parseCliArgs() {
+    try {
+        return parseArgs({
+            options: {
+                script: {
+                    type: 'string',
+                    short: 's',
+                    default: 'helloWorld',
+                },
+                project: {
+                    type: 'string',
+                    short: 'p',
+                },
+                help: {
+                    type: 'boolean',
+                    short: 'h',
+                }
+            },
+            strict: true,
+        });
+    } catch (error) {
+        console.error(`Error: ${(error as Error).message}`);
+        console.error(usage);
+        process.exit(1);
+    }
+}
 
-// const storageBucket = `${projectId}.firebasestorage.app`;
+const args = parseCliArgs();
 
-// const filePath = path.resolve(`./service-accounts/${projectId}.json`);
+// usage triggered by the help argument
+if (args.values.help) {
+    console.log(usage);
+    process.exit(0);
+}
 
-// const fileContent = await readFile(filePath, 'utf-8');
+const scriptFileName = args.values.script;
 
-// const projectCredentials = JSON.parse(fileContent);
+// to start emulator, run in terminal : npx firebase emulators:start --only firestore
 
-const app = initializeApp({
-    // credential: cert(projectCredentials),
-    projectId,
-    // storageBucket,
-});
+// firebase emulator check
+const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
+const isEmulator = Boolean(emulatorHost);
+
+const projectId = (isEmulator ? (args.values.project ?? 'demo-scriptrunner') : args.values.project) as string;
+
+// no projectId error handling
+if (!projectId) {
+    console.log('Error: live mode needs --project. To use the emulator, set FIRESTORE_EMULATOR_HOST.');
+    console.log(usage);
+    process.exit(1);
+}
+
+// incorrect projectId error handling for emulator
+if (isEmulator && !projectId.startsWith('demo-')) {
+    console.error(`Error: the emulator only runs demo- projects (got "${projectId}").`);
+    process.exit(1);
+}
+
+// incorrect projectId error handling for live
+if (!isEmulator && projectId.startsWith('demo-')) {
+    console.error(`Error: the live project doesn't run demo- projects (got "${projectId}")`);
+    process.exit(1);
+}
+
+// status check
+console.log(isEmulator ? `EMULATOR : ${emulatorHost} | ${projectId}` : `LIVE : ${projectId}`);
+
+const serviceAccountPath = path.resolve(`./service-accounts/${projectId}.json`);
+
+let credential;
+if (!isEmulator) {
+    try {
+        await access(serviceAccountPath);
+        credential = cert(JSON.parse(await readFile(serviceAccountPath, 'utf-8')));
+        console.log('credentials: service account file');
+    } catch (error) {
+        console.error(`Error: No service account files found for ${projectId}`);
+    }
+}
+
+const app = initializeApp(credential ? { credential, projectId } : { projectId });
 
 const db = getFirestore(app);
 
