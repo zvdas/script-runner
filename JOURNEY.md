@@ -241,3 +241,5 @@ Jira epic: KAN-38 · Sprint 0 · 16–20 Nov 2026
 - Open: confirm the deprecation warning with ADC (gotcha 8).
 
 **Next:** `emulators` / `dev:emu` npm scripts, a "Resume here" note, then KAN-40 (seed one collection) after the break.
+
+**Article:** [The safe target should be the default: lessons from a 5-day CLI rebuild](https://medium.com/@zvdas/the-safe-target-should-be-the-default-lessons-from-a-5-day-cli-rebuild-a2275c5d4bac)
