@@ -53,7 +53,7 @@ const scriptFileName = args.values.script;
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
 const isEmulator = Boolean(emulatorHost);
 
-const projectId = (isEmulator ? (args.values.project ?? 'demo-scriptrunner') : args.values.project) as string;
+const projectId = isEmulator ? (args.values.project ?? 'demo-scriptrunner') : args.values.project;
 
 // no projectId error handling
 if (!projectId) {
