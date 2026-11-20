@@ -159,3 +159,85 @@ Jira epic: KAN-38 · Sprint 0 · 16–20 Nov 2026
 - Open: the deprecation warning does not disappear with ADC
 
 **Next:** the guard + target line, the credential fallback, `--help` → close KAN-39.
+
+---
+
+## Day 3 · Thu 19 Nov · KAN-39 (CLI, guards, credentials)
+ 
+**Goal**: Replace the hard-coded script and project with CLI flags, guard against hitting the wrong target, support key file or ADC for live mode, and close KAN-39.
+ 
+**What I built**
+- CLI flags with Node's built-in `util.parseArgs` (no dependency): `--script`/`-s` (default `helloWorld`), `--project`/`-p` (no default), `--help`/`-h`.
+- Target detection from `FIRESTORE_EMULATOR_HOST`, with guard rules and a target line printed before connecting.
+- Live-mode credentials: the key file if `service-accounts/<projectId>.json` exists, otherwise ADC. The emulator uses no credentials at all.
+- PR #1 (`feat/kan-39-cli`), squash-merged. KAN-39 closed.
+#### CLI
+1. **npm swallows flags without `--`.**
+   - *Assumed:* `npm run dev --script helloWorld` passes `--script` to my program.
+   - *Actual:* npm treats it as its own flag. Printing `process.argv` showed it never arrived. Everything after `--` is forwarded: `npm run dev -- --script helloWorld`.
+   - *Rule:* always use `npm run <name> -- <flags>`, and write the usage text that way.
+2. **`strict: true` throws on unknown flags.**
+   - *Actual:* `--foo` throws inside `parseArgs`, so the user gets a stack trace.
+   - *Rule:* wrap the call in `try/catch`, print the error and the usage text, and exit with code 1.
+3. **Exit codes are part of the interface.**
+   - `--help` exits 0, every failure exits 1 (checked with `echo $?`). The KAN-42 tests and any future CI depend on this.
+#### Safety
+4. **I made production the default.**
+   - *Assumed:* defaulting `--project` to `eventfinderapp-2d94f` saves typing.
+   - *Actual:* a bare `npm run dev` would go straight to a live project. It's harmless while helloWorld only reads, but once `--reset` exists (KAN-41) the same habit wipes real data.
+   - *Rule:* the safe target is the default. The dangerous one takes effort to reach. The emulator defaults to `demo-scriptrunner`, and live mode requires `--project`.
+5. **Guard order: decide → announce → connect.**
+   - Work out emulator vs live, then refuse bad combinations before touching anything:
+     - emulator + an ID that doesn't start with `demo-` → refused
+     - live + a `demo-` ID → refused (this turns the fresh-clone `NO_ADC_FOUND` crash into a readable error)
+     - live + no `--project` → refused
+   - Then print the target (`EMULATOR : 127.0.0.1:8080 | demo-scriptrunner` / `LIVE : eventfinderapp-2d94f`) and only then initialise the app.
+6. **`as string` hides `undefined`.**
+   - *Assumed:* the cast was just to keep TypeScript quiet.
+   - *Actual:* it tells TypeScript to trust me, so a missing `--project` would slip through. I fell for it twice.
+   - *Rule:* narrow instead of casting. After `if (!projectId) { …exit }`, TypeScript knows it's a `string` without a cast.
+#### Credentials
+7. **Key file or ADC, and what each failure means.**
+   - With the key file: `cert(...)`, and it works.
+   - Without it: no credential is passed, so the SDK looks for ADC. On my Mac ADC isn't set up, so `NO_ADC_FOUND` is the correct result, not a bug.
+8. **The deprecation warning is tied to the key-file path.**
+   - It appears whenever `cert()` is used. It comes from inside firebase-admin, not from my code.
+   - Not yet checked against a working ADC setup (`gcloud auth application-default login`).
+9. **A message that looked like a failure.**
+   - A missing key file printed `Error: No service account files found`, even though falling back to ADC is the expected behaviour. Anyone reading it would think the tool broke before it tried ADC.
+   - *Rule:* say what happens next (`credentials: ADC (no key file at …)`). Use `Error` only for real failures.
+#### Environment
+10. **Emulator data is wiped when it stops.**
+   - After a restart the `events` doc was gone, so I got `[]` instead of `[ 'events' ]`. I also had to look up how to start the emulator again. Both commands are going into npm scripts.
+#### The near-miss
+11. **A screenshot is a way for a key to leak.**
+   - *What happened:* I shared a screenshot while the service account key file was open in the editor. The `private_key_id`, `client_email` and the start of the `private_key` were visible.
+   - *What saved me:* `.gitignore`. Source Control showed nothing staged, so the key never reached git. But `.gitignore` doesn't protect a screenshot.
+   - *Assumed:* deleting the screenshot fixes it.
+   - *Actual:* you can't reliably delete every copy. Rotating the key is the fix, because it makes every copy useless.
+   - *Fix:* created a new JSON key, deleted the old one (`649d9f19…`), and re-ran the live command to confirm.
+   - *Rule:* close `service-accounts/` files before any screenshot or recording. If a key is shown anywhere, rotate it. Don't just delete the image.
+12. **The project wasn't in the Google Cloud picker.**
+   - The picker was filtered to my organisation. Projects created from the Firebase console sit under "No organisation".
+   - *Shortcut:* Firebase console → Project settings → Service accounts → "Manage service account permissions" opens Google Cloud with the right project selected.
+
+**Test matrix (PR #1)**
+| # | Command | Result |
+|---|---|---|
+| 1 | `npm run dev -- --help` | usage, exit 0 |
+| 2 | `npm run dev -- --foo` | error + usage, exit 1 |
+| 3 | emulator, no flags | EMULATOR · demo-scriptrunner |
+| 4 | emulator + `-p eventfinderapp-2d94f` | refused |
+| 5 | live, no flags | refused (needs `--project`) |
+| 6 | live + `-p demo-scriptrunner` | refused |
+| 7 | live + `-p eventfinderapp-2d94f` | LIVE · key file → `[ 'events' ]` |
+| 8 | `npm run build && npm start -- --help` | compiled build works |
+ 
+**Decisions / deferred**
+- Open: `projectId` still has an `as string` cast (gotcha 6 isn't fully applied).
+- Open: the "live mode needs --project" error uses `console.log` instead of `console.error`.
+- Open: the ADC fallback message still says `Error:` (gotcha 9).
+- Open (KAN-42): a corrupted key file is silently treated as missing. Credentials should be checked before the script runs.
+- Open: confirm the deprecation warning with ADC (gotcha 8).
+
+**Next:** `emulators` / `dev:emu` npm scripts, a "Resume here" note, then KAN-40 (seed one collection) after the break.
